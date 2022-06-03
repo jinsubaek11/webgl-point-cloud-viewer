@@ -6,6 +6,7 @@ import './style.css';
 import Program from './program/program';
 import Points from './points/points';
 import { getData } from './utilities/util';
+import Matrix4x4 from './math/matrix4x4';
 
 
 
@@ -13,12 +14,17 @@ class App {
 	private _gl: WebGLRenderingContext
 	private _program: Program
 	private _objects: Points[] = []
+	private _mouse: number[]
+	private _zoom: number
 
 	public constructor() {
 		this._gl = GlUtilities.context
 		this._program = new Program(veretxSource, fragmentSource)
 		this._objects = []
+		this._mouse = [0,0]
+		this._zoom = 400
 
+		this.bindEventListener()
 		this.setTestData()
 	}
 
@@ -26,32 +32,104 @@ class App {
 		return this._objects
 	}
 
-	public setTestData() {
+	private bindEventListener():void {
+		let isMouseDown = false
+		let prevX = 0
+		let prevY = 0
+		const speed = 3
+		
+		window.addEventListener('wheel', (e:WheelEvent) => {
+			this._zoom += e.deltaY * 0.1
+		})
+		window.addEventListener('mousedown', () => {
+			isMouseDown = true
+		})
+		window.addEventListener('mouseup', () => {
+			isMouseDown = false
+		})
+		window.addEventListener('mousemove', (e:MouseEvent) => {
+			if (!isMouseDown) return
+
+
+			// if (e.clientX > prevX) {
+			// 	this._mouse[0] += speed
+			// } else {
+			// 	this._mouse[0] -= speed
+			// }
+
+			// prevX = e.clientX
+
+			// console.log(e.clientY, prevY)
+
+			if (e.clientY > prevY) {
+				this._mouse[1] += speed
+			} else {
+				this._mouse[1] -= speed
+			}
+
+			prevY = e.clientY
+
+			// console.log(e.clientX, e.clientY)
+			// this._mouse[0]++
+			// this._mouse[1]++
+		})
+	}
+
+	public setTestData():void {
 		const interval = setInterval(() => {
 			console.log(this._objects.length)
 
-			if (this._objects.length === 10) clearTimeout(interval)
+			if (this._objects.length === 5) clearTimeout(interval)
 
 			this.updateObjects(new Points(this._program, getData()))
 		},500)
+		// const obj1 = new Points(this._program, [
+		// 	-100, 0, 0,0,123,142,233,
+		// 	-300, 300, 0,0,113,42,133,
+		// 	 0, 0, 0,0,223,242,133,
+		// ], this._gl.TRIANGLES)
+		// const obj2 = new Points(this._program, [
+		// 	500, 0, 0,0,23,22,13,
+		// 	300, 300, 0,0,123,142,233,
+		// 	0, 0, 0,0,123,142,133,
+		// ],this._gl.TRIANGLES)
+
+		// this.updateObjects(obj1)
+		// this.updateObjects(obj2)
 	}
 
-	public updateObjects(points: Points) {
+	public updateObjects(points: Points):void {
 		this._objects.push(points)
 	}
 
 	public start():void {
 		this.loop()
+		console.log(this._program.uniformInfo)
 	}
-
 
 	private loop():void {
 		const gl = this._gl
 
-		gl.viewport(0,0,gl.canvas.clientWidth, gl.canvas.clientHeight)
+		gl.viewport(0,0,gl.canvas.width, gl.canvas.height)
 		gl.clearColor(0,0,0,1)
+
+		gl.enable(gl.DEPTH_TEST)
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
-	
+
+		// const camPos = [Math.sin(this._mouse[0])*300,0,Math.cos(this._mouse[0])*300]
+		const camPos = [0,0,this._zoom]
+		const target = [0,0,-150]
+		const up = [0,1,0]
+
+		// const camera = Matrix4x4.lookAt(camPos, target, up)
+		// const viewMatrix = Matrix4x4.inverse(camera)
+		let camera = Matrix4x4.multiply(Matrix4x4.rotationX(-this._mouse[1]), Matrix4x4.translation(...camPos))
+		const viewMatrix = Matrix4x4.inverse(camera)
+		const projectionMatrix = Matrix4x4.perspective(75, gl.canvas.width/gl.canvas.height, 10,1000)
+		const viewProjectionMatrix = Matrix4x4.multiply(projectionMatrix,viewMatrix)
+		
+		gl.uniformMatrix4fv(this._program.uniformInfo.viewProjectionMatrix,false, viewProjectionMatrix)
+
 		this._program.use()
 
 		this._objects.forEach(obj => {
