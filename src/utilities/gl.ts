@@ -70,8 +70,15 @@ export default class GlUtilities {
 			const displayWidth = Math.round(width * dpr)
 			const displayHeight = Math.round(height * dpr)
 
-			GlUtilities._context.canvas.width = displayWidth
-			GlUtilities._context.canvas.height = displayHeight
+			const gl = GlUtilities._context
+
+			gl.canvas.width = displayWidth
+			gl.canvas.height = displayHeight
+
+			gl.viewport(0,0,gl.canvas.width, gl.canvas.height)
+			gl.clearColor(0,0,0,1)
+			gl.clear(gl.COLOR_BUFFER_BIT)
+
 		}
 	}
 }
