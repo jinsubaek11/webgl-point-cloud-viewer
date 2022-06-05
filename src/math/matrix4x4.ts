@@ -1,4 +1,5 @@
-import { cross, degreeToRadian, normalize, subtract } from "./util"
+import { cross, degreeToRadian, normalize } from "./util"
+import Vector3 from "./vector3"
 
 
 export default class Matrix4x4 {
@@ -263,16 +264,16 @@ export default class Matrix4x4 {
         ]
     }
 
-    public static lookAt(pos:number[], target:number[], up:number[]):number[] {       
-        const z = normalize(subtract(pos,target))
-        const x = normalize(cross(up,z))
-        const y = normalize(cross(z,x))
+    public static lookAt(pos:Vector3, target:Vector3, up:Vector3):number[] {       
+        const axisZ = normalize(pos.subtract(target))
+        const axisX = normalize(cross(up,axisZ))
+        const axisY = normalize(cross(axisZ,axisX))
 
     return [
-        x[0], x[1], x[2], 0,
-        y[0], y[1], y[2], 0,
-        z[0], z[1], z[2], 0,
-        pos[0], pos[1], pos[2], 1
+        axisX.x, axisX.y, axisX.z, 0,
+        axisY.x, axisY.y, axisY.z, 0,
+        axisZ.x, axisZ.y, axisZ.z, 0,
+        pos.x, pos.y, pos.z, 1
     ]
 
 
