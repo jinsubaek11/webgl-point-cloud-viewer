@@ -1,36 +1,41 @@
+import Vector2 from "./vector2"
+import Vector3 from "./vector3"
+
 export const degreeToRadian = (deg:number) => {
     const radian = deg * Math.PI / 180
 
     return radian
 }
 
-export const cross = (a:number[], b:number[]) => {
-    return [
-        a[1]*b[2] - a[2]*b[1],
-        a[2]*b[0] - a[0]*b[2], 
-        a[0]*b[1] - a[1]*b[0]
-    ]
+export const cross = (a:Vector3, b:Vector3) => {
+    const vector = new Vector3()
+
+    vector.x = a.y*b.z - a.z*b.y
+    vector.y = a.z*b.x - a.x*b.z
+    vector.z = a.x*b.y - a.y*b.x
+
+    return vector
 }
 
-export const dot = (a:number[], b:number[]) => {
+export const dot = (a:Vector3, b:Vector3) => {
+    const scalar = a.x*b.x + a.y*b.y + a.z*b.z
     
-    return a[0]*b[0] + a[1]*b[1] + a[2]*b[2]
+    return scalar
 }
 
-export const subtract = (a:number[], b:number[]) => {
-    return [
-        a[0] - b[0],
-        a[1] - b[1],
-        a[2] - b[2],
-    ]
-}
+export const normalize = (a:Vector3) => {
+    const EPS = 0.00001
+    const length = Math.sqrt(a.x*a.x + a.y*a.y + a.z*a.z)
 
-export const normalize = (a:number[]) => {
-    const length = Math.sqrt(a[0]*a[0] + a[1]*a[1] + a[2]*a[2])
+    if (length < EPS) {
+        return new Vector3()
+    }
 
-    if (length > 0.00001) {
-        return [a[0]/length, a[1]/length, a[2]/length];
-      } else {
-        return [0, 0, 0];
-      }
+    const vector = new Vector3()
+
+    vector.x = a.x/length
+    vector.y = a.y/length
+    vector.z = a.z/length
+
+    return vector
 }
