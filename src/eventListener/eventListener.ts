@@ -20,7 +20,7 @@ export default class EventListener {
 		this._prev = new Vector2()
 		this._startMousePos = new Vector2()
 		this._endMousePos = new Vector2()
-		this._zoom = 400
+		this._zoom = 2
 		this._angles = {
 			horizontal: 0,
 			vertical: 0,
@@ -35,11 +35,18 @@ export default class EventListener {
         return this._angles
     }
 
+    public get zoom():number {
+        return this._zoom
+    }
+
     public bind():void {
             let isMouseDown = false
+            const EPS = 0.1
             
             window.addEventListener('wheel', (e:WheelEvent) => {
-                this._zoom += e.deltaY * 0.1
+                this._zoom -= e.deltaY * 0.005
+
+                if (this._zoom <= 0.1) this._zoom = EPS;
             })
             window.addEventListener('mousedown', (e:MouseEvent) => {
                 isMouseDown = true
