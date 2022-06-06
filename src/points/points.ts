@@ -27,19 +27,28 @@ export default class Points {
 		this._programInfo = program
 		this._bufferInfo = {
 			aPosition: new Buffer(this._position, 3, gl.FLOAT),
-			aIntensity: new Buffer(this._intensity, 1, gl.FLOAT),
+			// aIntensity: new Buffer(this._intensity, 1, gl.FLOAT),
 			aColor: new Buffer(this._color, 3, gl.UNSIGNED_BYTE, true)
 		}
 		this._uniformInfo = {}
 	}
 
-	private seperateData(data:number[]):void {
+	public get positionLength() {
+		return this._position.length
+	}
+
+	private seperateData(data:any):void {
 		const elementSize = 7
 
-		for (let i = 0; i < data.length; i+=elementSize) {
-			this._position.push(data[0+i],data[1+i],data[2+i])
-			this._intensity.push(data[3+i])
-			this._color.push(data[4+i],data[5+i],data[6+i])
+		// for (let i = 0; i < data.length; i+=elementSize) {
+		// 	this._position.push(data[0+i],data[1+i],data[2+i])
+		// 	this._intensity.push(data[3+i])
+		// 	this._color.push(data[4+i],data[5+i],data[6+i])
+		// }
+
+		for (const v of data) {
+			this._position.push(v.x,v.y,v.z)
+			this._color.push(v.r, v.g, v.b)
 		}
 	}
 

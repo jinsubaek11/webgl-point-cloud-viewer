@@ -1,30 +1,47 @@
-
-import { veretxSource } from './shaders/sources/vertexSource';
-import { fragmentSource } from './shaders/sources/fragmentSource';
+import EventListener from './eventListener/eventListener';
+import Quaternion from './math/quaternion';
+import Matrix4x4 from './math/matrix4x4';
 import GlUtilities from './utilities/gl';
-import './style.css';
 import Program from './program/program';
 import Points from './points/points';
+import Vector3 from './math/vector3';
+import { fragmentSource } from './shaders/sources/fragmentSource';
+import { veretxSource } from './shaders/sources/vertexSource';
+import { cross, normalize,  } from './math/util';
 import { getData } from './utilities/util';
-import Matrix4x4 from './math/matrix4x4';
+import { parse } from 'pcd-format'
+import './style.css';
 
 
+const Float32ToHex = (float32:number) => {
+    const getHex = (i:number) => ('00' + i.toString(16)).slice(-2);
+    var view = new DataView(new ArrayBuffer(4))
+    view.setFloat32(0, float32);
+    return Array.apply(null, { length: 4 }).map((_, i) => getHex(view.getUint8(i))).join('');
+}
+
+interface Coordinates {
+	x:number
+	y:number
+	z:number
+}
 
 class App {
 	private _gl: WebGLRenderingContext
 	private _program: Program
 	private _objects: Points[] = []
-	private _mouse: number[]
-	private _zoom: number
+	private _events: EventListener
 
+	private _max: Coordinates = { x:Number.MIN_SAFE_INTEGER , y:Number.MIN_SAFE_INTEGER, z:Number.MIN_SAFE_INTEGER } 
+	private _min: Coordinates = { x:Number.MAX_SAFE_INTEGER , y:Number.MAX_SAFE_INTEGER, z:Number.MAX_SAFE_INTEGER }
+ 
 	public constructor() {
 		this._gl = GlUtilities.context
 		this._program = new Program(veretxSource, fragmentSource)
-		this._objects = []
-		this._mouse = [0,0]
-		this._zoom = 400
+		this._events = new EventListener()
 
-		this.bindEventListener()
+		this._objects = []
+		this._events.bind()
 		this.setTestData()
 	}
 
@@ -32,57 +49,64 @@ class App {
 		return this._objects
 	}
 
-	private bindEventListener():void {
-		let isMouseDown = false
-		let prevX = 0
-		let prevY = 0
-		const speed = 3
-		
-		window.addEventListener('wheel', (e:WheelEvent) => {
-			this._zoom += e.deltaY * 0.1
-		})
-		window.addEventListener('mousedown', () => {
-			isMouseDown = true
-		})
-		window.addEventListener('mouseup', () => {
-			isMouseDown = false
-		})
-		window.addEventListener('mousemove', (e:MouseEvent) => {
-			if (!isMouseDown) return
-
-
-			// if (e.clientX > prevX) {
-			// 	this._mouse[0] += speed
-			// } else {
-			// 	this._mouse[0] -= speed
-			// }
-
-			// prevX = e.clientX
-
-			// console.log(e.clientY, prevY)
-
-			if (e.clientY > prevY) {
-				this._mouse[1] += speed
-			} else {
-				this._mouse[1] -= speed
-			}
-
-			prevY = e.clientY
-
-			// console.log(e.clientX, e.clientY)
-			// this._mouse[0]++
-			// this._mouse[1]++
-		})
-	}
-
 	public setTestData():void {
-		const interval = setInterval(() => {
-			console.log(this._objects.length)
+		let num = 0;
+		let j = 0
+		// let i = 0;
+		// for (let j = 1; j < 8; j++) {
+			for (let i = 0; i < 11; i++) {
+				fetch(`./pcd/tosca_hires/cat${i}.pcd`).then(res => res.arrayBuffer()).then(res => {
+				// fetch(`./pcd/office/office${i}.pcd`).then(res => res.arrayBuffer()).then(res => {
+				// fetch(`./pcd/hand_gestures/hand_${j}/image_000${i}.pcd`).then(res => res.arrayBuffer()).then(res => {
+					const pcd = parse(res, false)
 
-			if (this._objects.length === 5) clearTimeout(interval)
+					for (let i = 0; i < pcd.points.length; i++) {
+						const rgb = Number('0x' + Float32ToHex(pcd.points[i].rgb))
+						const r = (rgb>>16) & 0x0000ff
+						const g = (rgb>>8) & 0x0000ff
+						const b = (rgb) & 0x0000ff
+						
+						pcd.points[i].r = r
+						pcd.points[i].g = g
+						pcd.points[i].b = b
 
-			this.updateObjects(new Points(this._program, getData()))
-		},500)
+						if (this._min.x > pcd.points[i].x ) {
+							this._min.x = pcd.points[i].x
+						}
+
+						if (this._min.y > pcd.points[i].y ) {
+							this._min.y = pcd.points[i].y
+						}
+
+						if (this._min.z > pcd.points[i].z ) {
+							this._min.z = pcd.points[i].z
+						}
+
+						if (this._max.x < pcd.points[i].x ) {
+							this._max.x = pcd.points[i].x
+						}
+
+						if (this._max.y < pcd.points[i].y ) {
+							this._max.y = pcd.points[i].y
+						}
+
+						if (this._max.z < pcd.points[i].z ) {
+							this._max.z = pcd.points[i].z
+						}
+					}
+
+					this.updateObjects(new Points(this._program, pcd.points))
+					num += this._objects[this._objects.length-1].positionLength
+					console.log(num)
+				}).catch(err => console.log(err))
+			// }
+		}
+		// const interval = setInterval(() => {
+		// 	if (this._objects.length === 5) clearTimeout(interval)
+
+		// 	this.updateObjects(new Points(this._program, getData()))
+		// },500)
+
 		// const obj1 = new Points(this._program, [
 		// 	-100, 0, 0,0,123,142,233,
 		// 	-300, 300, 0,0,113,42,133,
@@ -116,18 +140,34 @@ class App {
 		gl.enable(gl.DEPTH_TEST)
 		gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
-		// const camPos = [Math.sin(this._mouse[0])*300,0,Math.cos(this._mouse[0])*300]
-		const camPos = [0,0,this._zoom]
-		const target = [0,0,-150]
-		const up = [0,1,0]
+		const midX = (this._max.x + this._min.x) * 0.5
+		const midY = (this._max.y + this._min.y) * 0.5
+		const midZ = (this._max.z + this._min.z) * 0.5
+		// const camPos = new Vector3(0,0,1)
+		const camPos = new Vector3(0,0,400)
+		const target = new Vector3(0, 0, 0)
+		const up = new Vector3(0,1,0)
 
-		// const camera = Matrix4x4.lookAt(camPos, target, up)
-		// const viewMatrix = Matrix4x4.inverse(camera)
-		let camera = Matrix4x4.multiply(Matrix4x4.rotationX(-this._mouse[1]), Matrix4x4.translation(...camPos))
-		const viewMatrix = Matrix4x4.inverse(camera)
-		const projectionMatrix = Matrix4x4.perspective(75, gl.canvas.width/gl.canvas.height, 10,1000)
+		const qh = Quaternion.axisToQuaternion(-this._events.angles.horizontal, up)
+		camPos.applyQuaternion(qh)
+
+		const axisX = normalize(cross(camPos, up))
+
+		const qv = Quaternion.axisToQuaternion(this._events.angles.vertical, axisX)
+		camPos.applyQuaternion(qv)
+
+		let camera = Matrix4x4.lookAt(camPos, target, up)
+		camera = Matrix4x4.multiply(Matrix4x4.translation(0,0,midZ), camera)
+
+		const defaultHalfScreenSize = this._max.x > this._max.y ? this._max.x * this._events.zoom : this._max.y * this._events.zoom
+
+		let viewMatrix = Matrix4x4.inverse(camera)
+		const projectionMatrix = Matrix4x4.orthograpic(
+			-defaultHalfScreenSize, defaultHalfScreenSize, defaultHalfScreenSize, -defaultHalfScreenSize, 10, 2000)
+		// const projectionMatrix = Matrix4x4.perspective(75, gl.canvas.width/gl.canvas.height, 10,6000)
 		const viewProjectionMatrix = Matrix4x4.multiply(projectionMatrix,viewMatrix)
-		
+
+		gl.uniformMatrix4fv(this._program.uniformInfo.transformMatrix,false,  Matrix4x4.identity()) 
 		gl.uniformMatrix4fv(this._program.uniformInfo.viewProjectionMatrix,false, viewProjectionMatrix)
 
 		this._program.use()
@@ -144,19 +184,8 @@ const app = new App()
 app.start()
 
 
-// const interval = setInterval(() => {
-// 	console.log(app.objects.length)
-// 	if (app.objects.length === 10) clearTimeout(interval)
-
-// 	app.updatePoints()
-// 	objects.push(new Points(program, getData()))
-// },100)
 
  
-
-
-
-
 
 
 
